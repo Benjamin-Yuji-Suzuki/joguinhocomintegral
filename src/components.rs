@@ -18,6 +18,10 @@ pub struct FeedbackTexto;
 #[derive(Component)]
 pub struct DestaqueMesaImg;
 
+// Novo: Representa o pop-up didático que abre ao clicar no Papel Cola
+#[derive(Component)]
+pub struct PopUpCola;
+
 #[derive(Component)]
 pub struct VidaTexto;
 
@@ -38,6 +42,10 @@ pub struct Npc;
 
 #[derive(Component)]
 pub struct DeckCartas;
+
+// Novo: Componente para o objeto "Papel Cola" na mesa (deck_cola.png)
+#[derive(Component)]
+pub struct DeckCola;
 
 #[derive(Component)]
 pub struct MenuUI;

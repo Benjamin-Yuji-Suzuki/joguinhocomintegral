@@ -453,7 +453,9 @@ pub fn game_over_mouse_click(
         With<CartaResposta>,
         With<Mesa>,
         With<Npc>,
-        With<DeckCartas>
+        With<DeckCartas>,
+        With<DeckCola>, // Novo: Garbage Collection pro Papel Cola
+        With<PopUpCola>, // Novo: Garbage Collection pro PopUp didático
     )>>,
 ) {
     if *tela_atual != TelaAtual::Jogo || !estado_jogo.game_over || !buttons.just_pressed(MouseButton::Left) {

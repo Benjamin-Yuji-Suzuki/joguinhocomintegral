@@ -8,7 +8,6 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
     crate::screens::spawn_menu(&mut commands, &asset_server);
     
-    // Toca a música de fundo em loop
     let musica: Handle<AudioSource> = asset_server.load("musica.ogg");
     commands.spawn((
         AudioPlayer(musica),
@@ -46,20 +45,24 @@ pub fn iniciar_jogo(
         DeckCartas,
     ));
 
+    commands.spawn((
+        Sprite::from_image(asset_server.load("deck_cola.png")),
+        Transform::from_xyz(550.0, -250.0, 2.0).with_scale(Vec3::new(0.8, 0.8, 1.0)),
+        DeckCola,
+    ));
+
     let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
     let primeira_pergunta = &banco_perguntas.itens[estado_jogo.pergunta_atual];
 
-    // ENUNCIADO: Descido de Y:200 para Y:140 e tamanho reduzido para 65% (0.65)
     commands.spawn((
         Sprite::from_image(asset_server.load(&primeira_pergunta.enunciado_img)),
-        Transform::from_xyz(0.0, 160.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
+        Transform::from_xyz(0.0, 140.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
         Enunciado,
     ));
 
-    // DESTAQUE DA CARTA (Opções A, B, C, D em imagem): Descido para Y:50 e tamanho em 65%
     commands.spawn((
         Sprite::default(),
-        Transform::from_xyz(0.0, 50.0, 1.0).with_scale(Vec3::new(0.45, 0.45, 1.0)),
+        Transform::from_xyz(0.0, 50.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
         Visibility::Hidden,
         DestaqueMesaImg,
     ));
@@ -114,8 +117,6 @@ pub fn iniciar_jogo(
     for i in 0..4 {
         let pos_x = (i as f32 - 1.5) * 200.0;
         let (img_path, correta) = &primeira_pergunta.opcoes[ordem[i]];
-        
-        // CARTAS NA MESA: Escala ajustada para 65% para acompanhar o layout
         commands.spawn((
             Sprite::from_image(asset_server.load("carta.png")),
             Transform::from_xyz(pos_x, -100.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
@@ -126,6 +127,8 @@ pub fn iniciar_jogo(
             },
         ));
     }
+
+    spawn_popup_cola(commands, &asset_server, banco_perguntas, estado_jogo.pergunta_atual);
 }
 
 pub fn handle_mouse_hover(
@@ -189,6 +192,8 @@ pub fn handle_mouse_clicks(
     q_cartas: Query<(&CartaResposta, &Transform)>,
     mut q_feedback: Query<&mut Text2d, With<FeedbackTexto>>,
     q_deck: Query<&Transform, With<DeckCartas>>,
+    q_cola: Query<&Transform, With<DeckCola>>,
+    mut q_popup: Query<&mut Visibility, With<PopUpCola>>, // Pega as visibilidades do PopUp
 ) {
     if *tela_atual != TelaAtual::Jogo
         || estado_jogo.game_over
@@ -219,6 +224,26 @@ pub fn handle_mouse_clicks(
                 }
             }
 
+            // Lógica de clique no Papel Cola
+            if let Ok(cola_transform) = q_cola.single() {
+                let cola_pos = cola_transform.translation;
+                if world_pos.x > cola_pos.x - 60.0
+                    && world_pos.x < cola_pos.x + 60.0
+                    && world_pos.y > cola_pos.y - 80.0
+                    && world_pos.y < cola_pos.y + 80.0
+                {
+                    // Alterna a visibilidade do PopUp sem precisar recriar
+                    for mut popup_vis in q_popup.iter_mut() {
+                        if *popup_vis == Visibility::Hidden {
+                            *popup_vis = Visibility::Visible;
+                        } else {
+                            *popup_vis = Visibility::Hidden;
+                        }
+                    }
+                    return;
+                }
+            }
+
             for (carta, transform) in q_cartas.iter() {
                 let pos = transform.translation;
                 if world_pos.x > pos.x - 50.0
@@ -231,8 +256,7 @@ pub fn handle_mouse_clicks(
                         if carta.correta {
                             estado_jogo.acertos += 1;
                             texto_feedback.0 = format!(
-                                "ACERTOU!\n{}\nProxima pergunta em 1s...",
-                                explicacao
+                                "ACERTOU!\n{}\nProxima pergunta em 1s...", explicacao
                             );
                         } else {
                             estado_jogo.erros += 1;
@@ -263,6 +287,7 @@ pub fn handle_mouse_clicks(
 }
 
 pub fn processar_proxima_pergunta(
+    mut commands: Commands,
     mut estado_jogo: ResMut<EstadoJogo>,
     tela_atual: Res<TelaAtual>,
     banco_perguntas: Res<BancoPerguntas>,
@@ -270,6 +295,7 @@ pub fn processar_proxima_pergunta(
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
     asset_server: Res<AssetServer>,
+    q_popup_entities: Query<Entity, With<PopUpCola>>, // Busca as entidades do PopUp antigo
 ) {
     if *tela_atual != TelaAtual::Jogo || estado_jogo.game_over || estado_jogo.proxima_pergunta_em > 0.0
     {
@@ -291,6 +317,12 @@ pub fn processar_proxima_pergunta(
         return;
     }
     aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
+    
+    // Despawna as entidades do PopUp antigo e cria o novo com o texto atualizado
+    for entity in q_popup_entities.iter() {
+        commands.entity(entity).despawn();
+    }
+    spawn_popup_cola(&mut commands, &asset_server, &banco_perguntas, estado_jogo.pergunta_atual);
 }
 
 pub fn update_timer(
@@ -303,6 +335,7 @@ pub fn update_timer(
     mut q_enunciado: Query<&mut Sprite, (With<Enunciado>, Without<FeedbackTexto>)>,
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
+    q_popup_entities: Query<Entity, With<PopUpCola>>, // Busca as entidades do PopUp antigo
 ) {
     if *tela_atual != TelaAtual::Jogo || estado_jogo.game_over {
         return;
@@ -330,6 +363,12 @@ pub fn update_timer(
             estado_jogo.pergunta_atual += 1;
             if estado_jogo.pergunta_atual < banco_perguntas.itens.len() {
                 aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
+                
+                // Despawna as entidades do PopUp antigo e cria o novo com o texto atualizado
+                for entity in q_popup_entities.iter() {
+                    commands.entity(entity).despawn();
+                }
+                spawn_popup_cola(&mut commands, &asset_server, &banco_perguntas, estado_jogo.pergunta_atual);
             }
         }
     }
@@ -372,6 +411,40 @@ fn aplicar_pergunta_atual(
         carta.img_path = path.clone();
         carta.correta = *correta;
     }
+}
+
+fn spawn_popup_cola(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    banco_perguntas: &Res<BancoPerguntas>,
+    pergunta_atual: usize,
+) {
+    let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
+    let explicacao = banco_perguntas.itens[pergunta_atual].explicacao;
+
+    let didatica = format!(
+        "GUIA DIDATICO: INTEGRAIS\n\n1) Regra Principal: \n∫ x^n dx = (x^(n+1))/(n+1) + C \n\n2) No nosso caso, ∫ 2x dx: \n  2x = 2 * x^1 \n  n = 1 \n\n3) Aplicando a Regra: \n  x^(1+1)/(1+1) = x^2/2 \n\n4) Finalizando: \n  2 * (x^2 / 2) + C = x^2 + C \n\nExplicacao do Banco: \n'{}' \n\nReferência: Tabela Integrais 123 PDF.", explicacao
+    );
+
+    commands.spawn((
+        Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.95), Vec2::new(1000.0, 600.0)),
+        Transform::from_xyz(0.0, 0.0, 10.0),
+        PopUpCola,
+        Visibility::Hidden, 
+    ));
+
+    commands.spawn((
+        Text2d::new(didatica),
+        TextFont {
+            font: fonte_matematica.clone(),
+            font_size: 28.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, 0.0, 11.0),
+        PopUpCola,
+        Visibility::Hidden,
+    ));
 }
 
 fn spawn_game_over_tela(commands: &mut Commands, asset_server: &Res<AssetServer>) {
