@@ -51,7 +51,6 @@ impl Default for BancoPerguntas {
         ];
 
         let mut itens = Vec::new();
-        // Gerador Automático apontando para as subpastas
         for i in 1..=20 {
             itens.push(Pergunta {
                 enunciado_img: format!("questao/q{}.png", i),

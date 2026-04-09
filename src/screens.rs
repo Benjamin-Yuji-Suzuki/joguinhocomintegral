@@ -198,7 +198,7 @@ fn spawn_botao_tutorial(
 pub fn menu_input(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    mut app_exit: MessageWriter<AppExit>,   
+    mut app_exit: MessageWriter<AppExit>,
     mut tela_atual: ResMut<TelaAtual>,
     q_menu: Query<Entity, With<MenuUI>>,
     asset_server: Res<AssetServer>,
@@ -242,7 +242,7 @@ pub fn menu_mouse_click(
     q_windows: Query<&Window>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
     q_botoes: Query<(&Transform, &MenuBotao), With<MenuUI>>,
-    mut app_exit: MessageWriter<AppExit>,   
+    mut app_exit: MessageWriter<AppExit>,
     mut tela_atual: ResMut<TelaAtual>,
     q_menu: Query<Entity, With<MenuUI>>,
     asset_server: Res<AssetServer>,
@@ -282,7 +282,7 @@ pub fn menu_mouse_click(
 fn executar_acao_menu(
     acao: MenuAcao,
     commands: &mut Commands,
-    app_exit: &mut MessageWriter<AppExit>,   
+    app_exit: &mut MessageWriter<AppExit>,
     tela_atual: &mut ResMut<TelaAtual>,
     q_menu: &Query<Entity, With<MenuUI>>,
     asset_server: &Res<AssetServer>,
@@ -411,7 +411,7 @@ pub fn spawn_game_over_menu(commands: &mut Commands, asset_server: &Res<AssetSer
 
     commands.spawn((
         Sprite::from_color(Color::srgba(0.6, 0.2, 0.2, 0.85), Vec2::new(300.0, 56.0)),
-        Transform::from_xyz(0.0, -250.0, 5.0),
+        Transform::from_xyz(0.0, -250.0, 5.0), 
         GameOverTela,
         GameOverBotao {
             acao: GameOverAcao::VoltarMenu,
@@ -482,8 +482,9 @@ pub fn game_over_mouse_click(
                     for entity in q_background.iter() {
                         commands.entity(entity).despawn();
                     }
-                    for entity in q_sujeira.iter() {
-                        commands.entity(entity).despawn();
+                    
+                    for entity in q_sujeira.iter() { 
+                        commands.entity(entity).despawn(); 
                     }
 
                     match botao.acao {

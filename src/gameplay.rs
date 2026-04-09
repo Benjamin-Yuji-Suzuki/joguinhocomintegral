@@ -7,6 +7,13 @@ use crate::state::{EstadoJogo, TelaAtual};
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
     crate::screens::spawn_menu(&mut commands, &asset_server);
+    
+    // Toca a música de fundo em loop
+    let musica: Handle<AudioSource> = asset_server.load("musica.ogg");
+    commands.spawn((
+        AudioPlayer(musica),
+        PlaybackSettings::LOOP,
+    ));
 }
 
 pub fn iniciar_jogo(
@@ -17,21 +24,37 @@ pub fn iniciar_jogo(
 ) {
     commands.spawn((
         Sprite::from_image(asset_server.load("background.png")),
-        Transform::from_xyz(0.0, 0.0, -1.0),
+        Transform::from_xyz(0.0, 0.0, -2.0),
         Background,
+    ));
+
+    commands.spawn((
+        Sprite::from_image(asset_server.load("mesa.png")),
+        Transform::from_xyz(0.0, 80.0, -1.0).with_scale(Vec3::new(1.25, 1.3, 1.0)),
+        Mesa,
+    ));
+
+    commands.spawn((
+        Sprite::from_image(asset_server.load("npc.png")),
+        Transform::from_xyz(0.0, 250.0, -1.5).with_scale(Vec3::new(0.9, 0.9, 1.0)),
+        Npc,
+    ));
+
+    commands.spawn((
+        Sprite::from_image(asset_server.load("deck_de_cartas.png")),
+        Transform::from_xyz(-550.0, -250.0, 2.0),
+        DeckCartas,
     ));
 
     let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
     let primeira_pergunta = &banco_perguntas.itens[estado_jogo.pergunta_atual];
 
-    // Enunciado gerado através da imagem
     commands.spawn((
         Sprite::from_image(asset_server.load(&primeira_pergunta.enunciado_img)),
         Transform::from_xyz(0.0, 200.0, 1.0),
         Enunciado,
     ));
 
-    // A imagem que aparecerá no centro começa oculta
     commands.spawn((
         Sprite::default(),
         Transform::from_xyz(0.0, 80.0, 1.0),
@@ -90,9 +113,8 @@ pub fn iniciar_jogo(
         let pos_x = (i as f32 - 1.5) * 200.0;
         let (img_path, correta) = &primeira_pergunta.opcoes[ordem[i]];
         commands.spawn((
-            // Usa o verso da carta ou uma carta em branco fixo na mesa
             Sprite::from_image(asset_server.load("carta.png")),
-            Transform::from_xyz(pos_x, -100.0, 1.0),
+            Transform::from_xyz(pos_x, -100.0, 1.0).with_scale(Vec3::new(0.75, 0.75, 1.0)),
             CartaIndice(i),
             CartaResposta {
                 img_path: img_path.clone(),
@@ -162,6 +184,7 @@ pub fn handle_mouse_clicks(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     q_cartas: Query<(&CartaResposta, &Transform)>,
     mut q_feedback: Query<&mut Text2d, With<FeedbackTexto>>,
+    q_deck: Query<&Transform, With<DeckCartas>>,
 ) {
     if *tela_atual != TelaAtual::Jogo
         || estado_jogo.game_over
@@ -175,6 +198,23 @@ pub fn handle_mouse_clicks(
 
     if let Some(cursor_pos) = window.cursor_position() {
         if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
+            
+            if let Ok(deck_transform) = q_deck.single() {
+                let deck_pos = deck_transform.translation;
+                if world_pos.x > deck_pos.x - 60.0
+                    && world_pos.x < deck_pos.x + 60.0
+                    && world_pos.y > deck_pos.y - 80.0
+                    && world_pos.y < deck_pos.y + 80.0
+                {
+                    if let Ok(mut texto_feedback) = q_feedback.single_mut() {
+                        texto_feedback.0 = "Pergunta pulada! Proxima em 1s...".to_string();
+                    }
+                    estado_jogo.erros += 1;
+                    estado_jogo.proxima_pergunta_em = 1.0;
+                    return;
+                }
+            }
+
             for (carta, transform) in q_cartas.iter() {
                 let pos = transform.translation;
                 if world_pos.x > pos.x - 50.0
@@ -187,7 +227,8 @@ pub fn handle_mouse_clicks(
                         if carta.correta {
                             estado_jogo.acertos += 1;
                             texto_feedback.0 = format!(
-                                "ACERTOU!\n{}\nProxima pergunta em 1s...", explicacao
+                                "ACERTOU!\n{}\nProxima pergunta em 1s...",
+                                explicacao
                             );
                         } else {
                             estado_jogo.erros += 1;
