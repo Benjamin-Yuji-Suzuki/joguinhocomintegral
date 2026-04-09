@@ -16,7 +16,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "rpgcal".to_string(),
-                resolution: (1280, 720).into(),
+                resolution: (1280, 720).into(), // <- Resolvido: números inteiros!
                 ..default()
             }),
             ..default()
@@ -40,9 +40,9 @@ fn main() {
             (
                 handle_mouse_hover,
                 handle_mouse_clicks,
-                processar_proxima_pergunta,
                 update_timer,
                 update_hud,
+                update_exploracao,
             ),
         )
         .run();

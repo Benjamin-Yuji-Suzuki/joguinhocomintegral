@@ -17,6 +17,7 @@ pub enum TelaAtual {
     TutorialInicio,
     TutorialLivre,
     Jogo,
+    Exploracao,
 }
 
 impl Default for EstadoJogo {

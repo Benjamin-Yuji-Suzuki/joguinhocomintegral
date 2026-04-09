@@ -358,7 +358,8 @@ pub fn tutorial_mouse_click(
                         commands.entity(entity).despawn();
                     }
                     match botao.acao {
-                        TutorialAcao::VoltarMenu => {
+                        // AQUI ESTÁ A CORREÇÃO: Tratando tanto VoltarMenu quanto Voltar
+                        TutorialAcao::VoltarMenu | TutorialAcao::Voltar => {
                             *tela_atual = TelaAtual::Menu;
                             for entity in q_background.iter() {
                                 commands.entity(entity).despawn();
@@ -456,6 +457,7 @@ pub fn game_over_mouse_click(
         With<DeckCartas>,
         With<DeckCola>, // Novo: Garbage Collection pro Papel Cola
         With<PopUpCola>, // Novo: Garbage Collection pro PopUp didático
+        With<BotaoLevantar>,
     )>>,
 ) {
     if *tela_atual != TelaAtual::Jogo || !estado_jogo.game_over || !buttons.just_pressed(MouseButton::Left) {

@@ -18,7 +18,6 @@ pub struct FeedbackTexto;
 #[derive(Component)]
 pub struct DestaqueMesaImg;
 
-// Novo: Representa o pop-up didático que abre ao clicar no Papel Cola
 #[derive(Component)]
 pub struct PopUpCola;
 
@@ -43,7 +42,6 @@ pub struct Npc;
 #[derive(Component)]
 pub struct DeckCartas;
 
-// Novo: Componente para o objeto "Papel Cola" na mesa (deck_cola.png)
 #[derive(Component)]
 pub struct DeckCola;
 
@@ -76,11 +74,12 @@ pub struct TutorialBotao {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TutorialAcao {
-    IniciarJogo,
-    VoltarMenu,
+    Voltar,
+    IniciarJogo, // <- Resolvido!
+    VoltarMenu,  // <- Resolvido!
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct GameOverBotao {
     pub acao: GameOverAcao,
     pub largura: f32,
@@ -92,5 +91,21 @@ pub enum GameOverAcao {
     VoltarMenu,
 }
 
+// --------------------------------------------------------
+// NOVOS COMPONENTES (BOTÕES E EXPLORAÇÃO POINT-AND-CLICK)
+// --------------------------------------------------------
+
 #[derive(Component)]
 pub struct BotaoFecharCola;
+
+#[derive(Component)]
+pub struct BotaoLevantar;
+
+#[derive(Component)]
+pub struct EntidadeJogo; 
+
+#[derive(Component)]
+pub struct EntidadeExploracao;
+
+#[derive(Component)]
+pub struct MesaInteragivel;
