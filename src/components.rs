@@ -5,7 +5,7 @@ pub struct Enunciado;
 
 #[derive(Component, Debug, Clone)]
 pub struct CartaResposta {
-    pub texto: String,
+    pub img_path: String,
     pub correta: bool,
 }
 
@@ -16,7 +16,7 @@ pub struct CartaIndice(pub usize);
 pub struct FeedbackTexto;
 
 #[derive(Component)]
-pub struct TextoDestaqueMesa;
+pub struct DestaqueMesaImg;
 
 #[derive(Component)]
 pub struct VidaTexto;

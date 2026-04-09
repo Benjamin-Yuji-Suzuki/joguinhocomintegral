@@ -32,12 +32,17 @@ fn main() {
                 menu_mouse_click,
                 tutorial_input,
                 tutorial_mouse_click,
-                update_timer,
-                update_hud,
+                game_over_mouse_click,
+            ),
+        )
+        .add_systems(
+            Update,
+            (
                 handle_mouse_hover,
                 handle_mouse_clicks,
                 processar_proxima_pergunta,
-                game_over_mouse_click,
+                update_timer,
+                update_hud,
             ),
         )
         .run();

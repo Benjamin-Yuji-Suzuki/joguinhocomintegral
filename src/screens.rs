@@ -1,4 +1,5 @@
 use bevy::app::AppExit;
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 
 use crate::components::*;
@@ -9,7 +10,6 @@ use crate::state::{EstadoJogo, TelaAtual};
 pub fn spawn_menu(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     let fonte = asset_server.load("FiraSans-Bold.ttf");
 
-    // Background do menu (mesmo do jogo)
     commands.spawn((
         Sprite::from_image(asset_server.load("background.png")),
         Transform::from_xyz(0.0, 0.0, -1.0),
@@ -101,7 +101,6 @@ pub fn spawn_tutorial(commands: &mut Commands, asset_server: &Res<AssetServer>, 
     let fonte = asset_server.load("FiraSans-Bold.ttf");
     let rodape = "Use os botoes abaixo.";
 
-    // Background do tutorial (mesmo do jogo)
     commands.spawn((
         Sprite::from_image(asset_server.load("background.png")),
         Transform::from_xyz(0.0, 0.0, -1.0),
@@ -199,7 +198,7 @@ fn spawn_botao_tutorial(
 pub fn menu_input(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    mut app_exit: MessageWriter<AppExit>,
+    mut app_exit: MessageWriter<AppExit>,   
     mut tela_atual: ResMut<TelaAtual>,
     q_menu: Query<Entity, With<MenuUI>>,
     asset_server: Res<AssetServer>,
@@ -243,7 +242,7 @@ pub fn menu_mouse_click(
     q_windows: Query<&Window>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
     q_botoes: Query<(&Transform, &MenuBotao), With<MenuUI>>,
-    mut app_exit: MessageWriter<AppExit>,
+    mut app_exit: MessageWriter<AppExit>,   
     mut tela_atual: ResMut<TelaAtual>,
     q_menu: Query<Entity, With<MenuUI>>,
     asset_server: Res<AssetServer>,
@@ -283,7 +282,7 @@ pub fn menu_mouse_click(
 fn executar_acao_menu(
     acao: MenuAcao,
     commands: &mut Commands,
-    app_exit: &mut MessageWriter<AppExit>,
+    app_exit: &mut MessageWriter<AppExit>,   
     tela_atual: &mut ResMut<TelaAtual>,
     q_menu: &Query<Entity, With<MenuUI>>,
     asset_server: &Res<AssetServer>,
@@ -293,7 +292,6 @@ fn executar_acao_menu(
             for entity in q_menu.iter() {
                 commands.entity(entity).despawn();
             }
-            // Nao despawn o background, ele continua
             **tela_atual = TelaAtual::TutorialInicio;
             spawn_tutorial(commands, asset_server, true);
         }
@@ -301,7 +299,6 @@ fn executar_acao_menu(
             for entity in q_menu.iter() {
                 commands.entity(entity).despawn();
             }
-            // Nao despawn o background
             **tela_atual = TelaAtual::TutorialLivre;
             spawn_tutorial(commands, asset_server, false);
         }
@@ -320,7 +317,6 @@ pub fn tutorial_input(
     _asset_server: Res<AssetServer>,
     _q_tutorial: Query<Entity, With<TutorialUI>>,
 ) {
-    // Tutorial agora usa apenas botoes clicaveis (point-click).
 }
 
 pub fn tutorial_mouse_click(
@@ -364,7 +360,6 @@ pub fn tutorial_mouse_click(
                     match botao.acao {
                         TutorialAcao::VoltarMenu => {
                             *tela_atual = TelaAtual::Menu;
-                            // Despawna o background do tutorial/jogo se existir
                             for entity in q_background.iter() {
                                 commands.entity(entity).despawn();
                             }
@@ -374,7 +369,6 @@ pub fn tutorial_mouse_click(
                             if *tela_atual == TelaAtual::TutorialInicio {
                                 *estado_jogo = EstadoJogo::default();
                                 *tela_atual = TelaAtual::Jogo;
-                                // Despawna o background do menu
                                 for entity in q_background.iter() {
                                     commands.entity(entity).despawn();
                                 }
@@ -386,7 +380,6 @@ pub fn tutorial_mouse_click(
                                 );
                             } else {
                                 *tela_atual = TelaAtual::Menu;
-                                // Despawna o background do tutorial
                                 for entity in q_background.iter() {
                                     commands.entity(entity).despawn();
                                 }
@@ -404,24 +397,21 @@ pub fn tutorial_mouse_click(
 pub fn spawn_game_over_menu(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     let fonte = asset_server.load("FiraSans-Bold.ttf");
 
-    // Fundo semitransparente para a tela de Game Over
     commands.spawn((
         Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.9), Vec2::new(1280.0, 720.0)),
         Transform::from_xyz(0.0, 0.0, 4.0),
         GameOverTela,
     ));
 
-    // A IMAGEM DO CASSEB ESTÁ DE VOLTA AQUI!
     commands.spawn((
         Sprite::from_image(asset_server.load("casseb.png")),
-        Transform::from_xyz(0.0, 50.0, 5.0), // Ajustado no eixo Y para ficar acima do botão
+        Transform::from_xyz(0.0, 50.0, 5.0),
         GameOverTela,
     ));
 
-    // Botão de voltar (movi um pouco mais para baixo, no Y: -250.0)
     commands.spawn((
         Sprite::from_color(Color::srgba(0.6, 0.2, 0.2, 0.85), Vec2::new(300.0, 56.0)),
-        Transform::from_xyz(0.0, -250.0, 5.0), 
+        Transform::from_xyz(0.0, -250.0, 5.0),
         GameOverTela,
         GameOverBotao {
             acao: GameOverAcao::VoltarMenu,
@@ -430,7 +420,6 @@ pub fn spawn_game_over_menu(commands: &mut Commands, asset_server: &Res<AssetSer
         },
     ));
 
-    // Texto do botão
     commands.spawn((
         Text2d::new("Voltar ao Menu"),
         TextFont {
@@ -455,10 +444,9 @@ pub fn game_over_mouse_click(
     asset_server: Res<AssetServer>,
     q_game_over: Query<Entity, With<GameOverTela>>,
     q_background: Query<Entity, With<Background>>,
-    // 👇 OLHA A MÁGICA AQUI: Juntamos 6 buscas em 1 só usando o Or<(...)>
     q_sujeira: Query<Entity, Or<(
         With<Enunciado>,
-        With<TextoDestaqueMesa>,
+        With<DestaqueMesaImg>,
         With<FeedbackTexto>,
         With<VidaTexto>,
         With<TempoTexto>,
@@ -488,17 +476,14 @@ pub fn game_over_mouse_click(
                     && world_pos.y > pos.y - hh
                     && world_pos.y < pos.y + hh
                 {
-                    // Limpa a tela de Game Over e o Background
                     for entity in q_game_over.iter() {
                         commands.entity(entity).despawn();
                     }
                     for entity in q_background.iter() {
                         commands.entity(entity).despawn();
                     }
-                    
-                    // 👇 Limpa todos os textos e cartas de uma vez só num loop único!
-                    for entity in q_sujeira.iter() { 
-                        commands.entity(entity).despawn(); 
+                    for entity in q_sujeira.iter() {
+                        commands.entity(entity).despawn();
                     }
 
                     match botao.acao {

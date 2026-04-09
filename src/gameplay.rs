@@ -7,13 +7,6 @@ use crate::state::{EstadoJogo, TelaAtual};
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
     crate::screens::spawn_menu(&mut commands, &asset_server);
-    
-    // Toca a música de fundo em loop
-    let musica: Handle<AudioSource> = asset_server.load("musica.ogg");
-    commands.spawn((
-        AudioPlayer(musica),
-        PlaybackSettings::LOOP,
-    ));
 }
 
 pub fn iniciar_jogo(
@@ -22,59 +15,28 @@ pub fn iniciar_jogo(
     banco_perguntas: &Res<BancoPerguntas>,
     estado_jogo: &EstadoJogo,
 ) {
-    // Background original (mais fundo)
     commands.spawn((
         Sprite::from_image(asset_server.load("background.png")),
-        Transform::from_xyz(0.0, 0.0, -2.0),
+        Transform::from_xyz(0.0, 0.0, -1.0),
         Background,
-    ));
-
-    // Mesa sobre o background (esticada para cima e mais larga)
-    commands.spawn((
-        Sprite::from_image(asset_server.load("mesa.png")),
-        Transform::from_xyz(0.0, 80.0, -1.0).with_scale(Vec3::new(1.25, 1.3, 1.0)),
-        Mesa,
-    ));
-
-    // NPC atrás da mesa, um pouco acima, reduzido em 10%
-    commands.spawn((
-        Sprite::from_image(asset_server.load("npc.png")),
-        Transform::from_xyz(0.0, 250.0, -1.5).with_scale(Vec3::new(0.9, 0.9, 1.0)),
-        Npc,
-    ));
-
-    // Deck de cartas no canto inferior esquerdo (subido um pouco)
-    commands.spawn((
-        Sprite::from_image(asset_server.load("deck_de_cartas.png")),
-        Transform::from_xyz(-550.0, -250.0, 2.0),
-        DeckCartas,
     ));
 
     let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
     let primeira_pergunta = &banco_perguntas.itens[estado_jogo.pergunta_atual];
 
+    // Enunciado gerado através da imagem
     commands.spawn((
-        Text2d::new(primeira_pergunta.enunciado),
-        TextFont {
-            font: fonte_matematica.clone(),
-            font_size: 40.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
+        Sprite::from_image(asset_server.load(&primeira_pergunta.enunciado_img)),
         Transform::from_xyz(0.0, 200.0, 1.0),
         Enunciado,
     ));
 
+    // A imagem que aparecerá no centro começa oculta
     commands.spawn((
-        Text2d::new(""),
-        TextFont {
-            font: fonte_matematica.clone(),
-            font_size: 50.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
+        Sprite::default(),
         Transform::from_xyz(0.0, 80.0, 1.0),
-        TextoDestaqueMesa,
+        Visibility::Hidden,
+        DestaqueMesaImg,
     ));
 
     commands.spawn((
@@ -126,14 +88,15 @@ pub fn iniciar_jogo(
     let ordem = ordem_opcoes_para_pergunta(estado_jogo.pergunta_atual);
     for i in 0..4 {
         let pos_x = (i as f32 - 1.5) * 200.0;
-        let (texto, correta) = primeira_pergunta.opcoes[ordem[i]];
+        let (img_path, correta) = &primeira_pergunta.opcoes[ordem[i]];
         commands.spawn((
+            // Usa o verso da carta ou uma carta em branco fixo na mesa
             Sprite::from_image(asset_server.load("carta.png")),
-            Transform::from_xyz(pos_x, -100.0, 1.0).with_scale(Vec3::new(0.75, 0.75, 1.0)),
+            Transform::from_xyz(pos_x, -100.0, 1.0),
             CartaIndice(i),
             CartaResposta {
-                texto: texto.to_string(),
-                correta,
+                img_path: img_path.clone(),
+                correta: *correta,
             },
         ));
     }
@@ -145,14 +108,15 @@ pub fn handle_mouse_hover(
     q_windows: Query<&Window>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
     q_cartas: Query<(&CartaResposta, &Transform)>,
-    mut q_destaque: Query<&mut Text2d, With<TextoDestaqueMesa>>,
+    mut q_destaque: Query<(&mut Sprite, &mut Visibility), With<DestaqueMesaImg>>,
+    asset_server: Res<AssetServer>,
 ) {
     if *tela_atual != TelaAtual::Jogo {
         return;
     }
     if estado_jogo.game_over {
-        if let Ok(mut texto_ui) = q_destaque.single_mut() {
-            texto_ui.0 = String::new();
+        if let Ok((_, mut vis)) = q_destaque.single_mut() {
+            *vis = Visibility::Hidden;
         }
         return;
     }
@@ -160,7 +124,7 @@ pub fn handle_mouse_hover(
     let Ok(window) = q_windows.single() else { return; };
     let Ok((camera, camera_transform)) = q_camera.single() else { return; };
 
-    let mut texto_para_exibir = "";
+    let mut hover_img_path = None;
     if let Some(cursor_pos) = window.cursor_position() {
         if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
             for (carta, transform) in q_cartas.iter() {
@@ -170,14 +134,20 @@ pub fn handle_mouse_hover(
                     && world_pos.y > pos.y - 75.0
                     && world_pos.y < pos.y + 75.0
                 {
-                    texto_para_exibir = &carta.texto;
+                    hover_img_path = Some(carta.img_path.clone());
                     break;
                 }
             }
         }
     }
-    if let Ok(mut texto_ui) = q_destaque.single_mut() {
-        texto_ui.0 = texto_para_exibir.to_string();
+    
+    if let Ok((mut sprite, mut vis)) = q_destaque.single_mut() {
+        if let Some(path) = hover_img_path {
+            sprite.image = asset_server.load(path);
+            *vis = Visibility::Visible;
+        } else {
+            *vis = Visibility::Hidden;
+        }
     }
 }
 
@@ -192,7 +162,6 @@ pub fn handle_mouse_clicks(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     q_cartas: Query<(&CartaResposta, &Transform)>,
     mut q_feedback: Query<&mut Text2d, With<FeedbackTexto>>,
-    q_deck: Query<&Transform, With<DeckCartas>>,
 ) {
     if *tela_atual != TelaAtual::Jogo
         || estado_jogo.game_over
@@ -206,25 +175,6 @@ pub fn handle_mouse_clicks(
 
     if let Some(cursor_pos) = window.cursor_position() {
         if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
-            // Verifica clique no deck de cartas (pula pergunta)
-            if let Ok(deck_transform) = q_deck.single() {
-                let deck_pos = deck_transform.translation;
-                // Hitbox maior para o deck (~120x160 pixels)
-                if world_pos.x > deck_pos.x - 60.0
-                    && world_pos.x < deck_pos.x + 60.0
-                    && world_pos.y > deck_pos.y - 80.0
-                    && world_pos.y < deck_pos.y + 80.0
-                {
-                    if let Ok(mut texto_feedback) = q_feedback.single_mut() {
-                        texto_feedback.0 = "Pergunta pulada! Proxima em 1s...".to_string();
-                    }
-                    estado_jogo.erros += 1;
-                    estado_jogo.proxima_pergunta_em = 1.0;
-                    return;
-                }
-            }
-
-            // Verifica clique nas cartas de resposta
             for (carta, transform) in q_cartas.iter() {
                 let pos = transform.translation;
                 if world_pos.x > pos.x - 50.0
@@ -237,8 +187,7 @@ pub fn handle_mouse_clicks(
                         if carta.correta {
                             estado_jogo.acertos += 1;
                             texto_feedback.0 = format!(
-                                "ACERTOU! {}\n{}\nProxima pergunta em 1s...",
-                                carta.texto, explicacao
+                                "ACERTOU!\n{}\nProxima pergunta em 1s...", explicacao
                             );
                         } else {
                             estado_jogo.erros += 1;
@@ -252,8 +201,8 @@ pub fn handle_mouse_clicks(
                                 spawn_game_over_tela(&mut commands, &asset_server);
                             } else {
                                 texto_feedback.0 = format!(
-                                    "ERROU! Voce selecionou {}\n{}\nVidas restantes: {}\nProxima pergunta em 1s...",
-                                    carta.texto, explicacao, estado_jogo.vidas.max(0)
+                                    "ERROU!\n{}\nVidas restantes: {}\nProxima pergunta em 1s...",
+                                    explicacao, estado_jogo.vidas.max(0)
                                 );
                             }
                         }
@@ -272,9 +221,10 @@ pub fn processar_proxima_pergunta(
     mut estado_jogo: ResMut<EstadoJogo>,
     tela_atual: Res<TelaAtual>,
     banco_perguntas: Res<BancoPerguntas>,
-    mut q_enunciado: Query<&mut Text2d, (With<Enunciado>, Without<FeedbackTexto>)>,
+    mut q_enunciado: Query<&mut Sprite, (With<Enunciado>, Without<FeedbackTexto>)>,
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
+    asset_server: Res<AssetServer>,
 ) {
     if *tela_atual != TelaAtual::Jogo || estado_jogo.game_over || estado_jogo.proxima_pergunta_em > 0.0
     {
@@ -295,7 +245,7 @@ pub fn processar_proxima_pergunta(
         }
         return;
     }
-    aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas);
+    aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
 }
 
 pub fn update_timer(
@@ -305,7 +255,7 @@ pub fn update_timer(
     mut estado_jogo: ResMut<EstadoJogo>,
     tela_atual: Res<TelaAtual>,
     banco_perguntas: Res<BancoPerguntas>,
-    mut q_enunciado: Query<&mut Text2d, (With<Enunciado>, Without<FeedbackTexto>)>,
+    mut q_enunciado: Query<&mut Sprite, (With<Enunciado>, Without<FeedbackTexto>)>,
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
 ) {
@@ -334,7 +284,7 @@ pub fn update_timer(
         if estado_jogo.proxima_pergunta_em <= 0.0 {
             estado_jogo.pergunta_atual += 1;
             if estado_jogo.pergunta_atual < banco_perguntas.itens.len() {
-                aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas);
+                aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
             }
         }
     }
@@ -361,22 +311,24 @@ pub fn update_hud(
 fn aplicar_pergunta_atual(
     pergunta_atual: usize,
     banco_perguntas: &Res<BancoPerguntas>,
-    q_enunciado: &mut Query<&mut Text2d, (With<Enunciado>, Without<FeedbackTexto>)>,
+    q_enunciado: &mut Query<&mut Sprite, (With<Enunciado>, Without<FeedbackTexto>)>,
     q_cartas: &mut Query<(&CartaIndice, &mut CartaResposta)>,
+    asset_server: &Res<AssetServer>,
 ) {
     let pergunta = &banco_perguntas.itens[pergunta_atual];
     let ordem = ordem_opcoes_para_pergunta(pergunta_atual);
-    if let Ok(mut enunciado) = q_enunciado.single_mut() {
-        enunciado.0 = pergunta.enunciado.to_string();
+    
+    if let Ok(mut enunciado_sprite) = q_enunciado.single_mut() {
+        enunciado_sprite.image = asset_server.load(&pergunta.enunciado_img);
     }
+    
     for (indice, mut carta) in q_cartas.iter_mut() {
-        let (texto, correta) = pergunta.opcoes[ordem[indice.0]];
-        carta.texto = texto.to_string();
-        carta.correta = correta;
+        let (path, correta) = &pergunta.opcoes[ordem[indice.0]];
+        carta.img_path = path.clone();
+        carta.correta = *correta;
     }
 }
 
 fn spawn_game_over_tela(commands: &mut Commands, asset_server: &Res<AssetServer>) {
-    // Spawn do menu com botao (sem imagem do casseb, usa background.png do jogo)
     crate::screens::spawn_game_over_menu(commands, asset_server);
 }
