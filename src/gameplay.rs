@@ -49,15 +49,17 @@ pub fn iniciar_jogo(
     let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
     let primeira_pergunta = &banco_perguntas.itens[estado_jogo.pergunta_atual];
 
+    // ENUNCIADO: Descido de Y:200 para Y:140 e tamanho reduzido para 65% (0.65)
     commands.spawn((
         Sprite::from_image(asset_server.load(&primeira_pergunta.enunciado_img)),
-        Transform::from_xyz(0.0, 200.0, 1.0),
+        Transform::from_xyz(0.0, 160.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
         Enunciado,
     ));
 
+    // DESTAQUE DA CARTA (Opções A, B, C, D em imagem): Descido para Y:50 e tamanho em 65%
     commands.spawn((
         Sprite::default(),
-        Transform::from_xyz(0.0, 80.0, 1.0),
+        Transform::from_xyz(0.0, 50.0, 1.0).with_scale(Vec3::new(0.45, 0.45, 1.0)),
         Visibility::Hidden,
         DestaqueMesaImg,
     ));
@@ -112,9 +114,11 @@ pub fn iniciar_jogo(
     for i in 0..4 {
         let pos_x = (i as f32 - 1.5) * 200.0;
         let (img_path, correta) = &primeira_pergunta.opcoes[ordem[i]];
+        
+        // CARTAS NA MESA: Escala ajustada para 65% para acompanhar o layout
         commands.spawn((
             Sprite::from_image(asset_server.load("carta.png")),
-            Transform::from_xyz(pos_x, -100.0, 1.0).with_scale(Vec3::new(0.75, 0.75, 1.0)),
+            Transform::from_xyz(pos_x, -100.0, 1.0).with_scale(Vec3::new(0.65, 0.65, 1.0)),
             CartaIndice(i),
             CartaResposta {
                 img_path: img_path.clone(),
