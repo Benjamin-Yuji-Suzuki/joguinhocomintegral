@@ -462,7 +462,10 @@ pub fn game_over_mouse_click(
         With<FeedbackTexto>,
         With<VidaTexto>,
         With<TempoTexto>,
-        With<CartaResposta>
+        With<CartaResposta>,
+        With<Mesa>,
+        With<Npc>,
+        With<DeckCartas>
     )>>,
 ) {
     if *tela_atual != TelaAtual::Jogo || !estado_jogo.game_over || !buttons.just_pressed(MouseButton::Left) {

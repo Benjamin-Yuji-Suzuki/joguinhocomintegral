@@ -31,6 +31,15 @@ pub struct GameOverTela;
 pub struct Background;
 
 #[derive(Component)]
+pub struct Mesa;
+
+#[derive(Component)]
+pub struct Npc;
+
+#[derive(Component)]
+pub struct DeckCartas;
+
+#[derive(Component)]
 pub struct MenuUI;
 
 #[derive(Component)]
