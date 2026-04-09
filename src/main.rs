@@ -37,6 +37,7 @@ fn main() {
                 handle_mouse_hover,
                 handle_mouse_clicks,
                 processar_proxima_pergunta,
+                game_over_mouse_click,
             ),
         )
         .run();

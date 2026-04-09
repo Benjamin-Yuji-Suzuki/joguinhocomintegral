@@ -401,6 +401,49 @@ pub fn tutorial_mouse_click(
     }
 }
 
+pub fn spawn_game_over_menu(commands: &mut Commands, asset_server: &Res<AssetServer>) {
+    let fonte = asset_server.load("FiraSans-Bold.ttf");
+
+    // Fundo semitransparente para a tela de Game Over
+    commands.spawn((
+        Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.9), Vec2::new(1280.0, 720.0)),
+        Transform::from_xyz(0.0, 0.0, 4.0),
+        GameOverTela,
+    ));
+
+    // A IMAGEM DO CASSEB ESTÁ DE VOLTA AQUI!
+    commands.spawn((
+        Sprite::from_image(asset_server.load("casseb.png")),
+        Transform::from_xyz(0.0, 50.0, 5.0), // Ajustado no eixo Y para ficar acima do botão
+        GameOverTela,
+    ));
+
+    // Botão de voltar (movi um pouco mais para baixo, no Y: -250.0)
+    commands.spawn((
+        Sprite::from_color(Color::srgba(0.6, 0.2, 0.2, 0.85), Vec2::new(300.0, 56.0)),
+        Transform::from_xyz(0.0, -250.0, 5.0), 
+        GameOverTela,
+        GameOverBotao {
+            acao: GameOverAcao::VoltarMenu,
+            largura: 300.0,
+            altura: 56.0,
+        },
+    ));
+
+    // Texto do botão
+    commands.spawn((
+        Text2d::new("Voltar ao Menu"),
+        TextFont {
+            font: fonte,
+            font_size: 30.0,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, -250.0, 6.0),
+        GameOverTela,
+    ));
+}
+
 pub fn game_over_mouse_click(
     mut commands: Commands,
     buttons: Res<ButtonInput<MouseButton>>,
@@ -409,10 +452,18 @@ pub fn game_over_mouse_click(
     q_botoes: Query<(&Transform, &GameOverBotao), With<GameOverTela>>,
     mut tela_atual: ResMut<TelaAtual>,
     mut estado_jogo: ResMut<EstadoJogo>,
-    _banco_perguntas: Res<BancoPerguntas>,
     asset_server: Res<AssetServer>,
     q_game_over: Query<Entity, With<GameOverTela>>,
     q_background: Query<Entity, With<Background>>,
+    // 👇 OLHA A MÁGICA AQUI: Juntamos 6 buscas em 1 só usando o Or<(...)>
+    q_sujeira: Query<Entity, Or<(
+        With<Enunciado>,
+        With<TextoDestaqueMesa>,
+        With<FeedbackTexto>,
+        With<VidaTexto>,
+        With<TempoTexto>,
+        With<CartaResposta>
+    )>>,
 ) {
     if *tela_atual != TelaAtual::Jogo || !estado_jogo.game_over || !buttons.just_pressed(MouseButton::Left) {
         return;
@@ -434,13 +485,19 @@ pub fn game_over_mouse_click(
                     && world_pos.y > pos.y - hh
                     && world_pos.y < pos.y + hh
                 {
-                    // Despawn de tudo do game over e background
+                    // Limpa a tela de Game Over e o Background
                     for entity in q_game_over.iter() {
                         commands.entity(entity).despawn();
                     }
                     for entity in q_background.iter() {
                         commands.entity(entity).despawn();
                     }
+                    
+                    // 👇 Limpa todos os textos e cartas de uma vez só num loop único!
+                    for entity in q_sujeira.iter() { 
+                        commands.entity(entity).despawn(); 
+                    }
+
                     match botao.acao {
                         GameOverAcao::VoltarMenu => {
                             *tela_atual = TelaAtual::Menu;

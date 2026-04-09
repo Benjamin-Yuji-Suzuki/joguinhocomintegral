@@ -62,3 +62,15 @@ pub enum TutorialAcao {
     IniciarJogo,
     VoltarMenu,
 }
+
+#[derive(Component)]
+pub struct GameOverBotao {
+    pub acao: GameOverAcao,
+    pub largura: f32,
+    pub altura: f32,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum GameOverAcao {
+    VoltarMenu,
+}
