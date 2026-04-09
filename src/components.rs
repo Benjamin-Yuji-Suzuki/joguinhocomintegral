@@ -91,3 +91,6 @@ pub struct GameOverBotao {
 pub enum GameOverAcao {
     VoltarMenu,
 }
+
+#[derive(Component)]
+pub struct BotaoFecharCola;

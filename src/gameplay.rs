@@ -1,8 +1,11 @@
 use bevy::prelude::*;
+use bevy::ecs::relationship::Relationship; // Necessário para acessar o pai (parent.get())
 
 use crate::components::*;
 use crate::questions::{ordem_opcoes_para_pergunta, BancoPerguntas};
 use crate::state::{EstadoJogo, TelaAtual};
+
+
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
@@ -128,7 +131,8 @@ pub fn iniciar_jogo(
         ));
     }
 
-    spawn_popup_cola(commands, &asset_server, banco_perguntas, estado_jogo.pergunta_atual);
+    // Chama o spawn do pop-up da cola (que agora inclui o botão de fechar)
+    spawn_popup_cola(commands, &asset_server);
 }
 
 pub fn handle_mouse_hover(
@@ -193,7 +197,10 @@ pub fn handle_mouse_clicks(
     mut q_feedback: Query<&mut Text2d, With<FeedbackTexto>>,
     q_deck: Query<&Transform, With<DeckCartas>>,
     q_cola: Query<&Transform, With<DeckCola>>,
-    mut q_popup: Query<&mut Visibility, With<PopUpCola>>, // Pega as visibilidades do PopUp
+    // Pegamos a visibilidade do PopUp E do fundo escuro
+    mut q_popup_base: Query<(&mut Visibility, Option<&Children>), (With<PopUpCola>, Without<BotaoFecharCola>)>,
+    // Pegamos o GlobalTransform para saber exatamente onde o botão está na tela, e o ChildOf para saber quem é o pai
+    q_botao_fechar: Query<(&GlobalTransform, &ChildOf), With<BotaoFecharCola>>, 
 ) {
     if *tela_atual != TelaAtual::Jogo
         || estado_jogo.game_over
@@ -224,7 +231,29 @@ pub fn handle_mouse_clicks(
                 }
             }
 
-            // Lógica de clique no Papel Cola
+            // Lógica de clique no Botão Invisível de Fechar
+            for (button_global_transform, parent) in q_botao_fechar.iter() {
+                if let Ok((parent_vis, _)) = q_popup_base.get(parent.get()) {
+                    if *parent_vis == Visibility::Visible {
+                        
+                        // Pegamos a posição global exata da tela
+                        let button_pos = button_global_transform.translation();
+                        
+                        if world_pos.x > button_pos.x - 30.0
+                            && world_pos.x < button_pos.x + 30.0
+                            && world_pos.y > button_pos.y - 30.0
+                            && world_pos.y < button_pos.y + 30.0
+                        {
+                            for (mut vis, _) in q_popup_base.iter_mut() {
+                                *vis = Visibility::Hidden;
+                            }
+                            return; 
+                        }
+                    }
+                }
+            }
+
+            // Lógica de clique no Deck de Cola (para ABRIR)
             if let Ok(cola_transform) = q_cola.single() {
                 let cola_pos = cola_transform.translation;
                 if world_pos.x > cola_pos.x - 60.0
@@ -232,13 +261,9 @@ pub fn handle_mouse_clicks(
                     && world_pos.y > cola_pos.y - 80.0
                     && world_pos.y < cola_pos.y + 80.0
                 {
-                    // Alterna a visibilidade do PopUp sem precisar recriar
-                    for mut popup_vis in q_popup.iter_mut() {
-                        if *popup_vis == Visibility::Hidden {
-                            *popup_vis = Visibility::Visible;
-                        } else {
-                            *popup_vis = Visibility::Hidden;
-                        }
+                    // Abre tudo
+                    for (mut vis, _) in q_popup_base.iter_mut() {
+                        *vis = Visibility::Visible;
                     }
                     return;
                 }
@@ -287,7 +312,6 @@ pub fn handle_mouse_clicks(
 }
 
 pub fn processar_proxima_pergunta(
-    mut commands: Commands,
     mut estado_jogo: ResMut<EstadoJogo>,
     tela_atual: Res<TelaAtual>,
     banco_perguntas: Res<BancoPerguntas>,
@@ -295,7 +319,6 @@ pub fn processar_proxima_pergunta(
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
     asset_server: Res<AssetServer>,
-    q_popup_entities: Query<Entity, With<PopUpCola>>, // Busca as entidades do PopUp antigo
 ) {
     if *tela_atual != TelaAtual::Jogo || estado_jogo.game_over || estado_jogo.proxima_pergunta_em > 0.0
     {
@@ -317,12 +340,6 @@ pub fn processar_proxima_pergunta(
         return;
     }
     aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
-    
-    // Despawna as entidades do PopUp antigo e cria o novo com o texto atualizado
-    for entity in q_popup_entities.iter() {
-        commands.entity(entity).despawn();
-    }
-    spawn_popup_cola(&mut commands, &asset_server, &banco_perguntas, estado_jogo.pergunta_atual);
 }
 
 pub fn update_timer(
@@ -335,7 +352,6 @@ pub fn update_timer(
     mut q_enunciado: Query<&mut Sprite, (With<Enunciado>, Without<FeedbackTexto>)>,
     mut q_cartas: Query<(&CartaIndice, &mut CartaResposta)>,
     mut q_feedback: Query<&mut Text2d, (With<FeedbackTexto>, Without<Enunciado>)>,
-    q_popup_entities: Query<Entity, With<PopUpCola>>, // Busca as entidades do PopUp antigo
 ) {
     if *tela_atual != TelaAtual::Jogo || estado_jogo.game_over {
         return;
@@ -363,12 +379,6 @@ pub fn update_timer(
             estado_jogo.pergunta_atual += 1;
             if estado_jogo.pergunta_atual < banco_perguntas.itens.len() {
                 aplicar_pergunta_atual(estado_jogo.pergunta_atual, &banco_perguntas, &mut q_enunciado, &mut q_cartas, &asset_server);
-                
-                // Despawna as entidades do PopUp antigo e cria o novo com o texto atualizado
-                for entity in q_popup_entities.iter() {
-                    commands.entity(entity).despawn();
-                }
-                spawn_popup_cola(&mut commands, &asset_server, &banco_perguntas, estado_jogo.pergunta_atual);
             }
         }
     }
@@ -416,16 +426,8 @@ fn aplicar_pergunta_atual(
 fn spawn_popup_cola(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    banco_perguntas: &Res<BancoPerguntas>,
-    pergunta_atual: usize,
 ) {
-    let fonte_matematica = asset_server.load("FiraSans-Bold.ttf");
-    let explicacao = banco_perguntas.itens[pergunta_atual].explicacao;
-
-    let didatica = format!(
-        "GUIA DIDATICO: INTEGRAIS\n\n1) Regra Principal: \n∫ x^n dx = (x^(n+1))/(n+1) + C \n\n2) No nosso caso, ∫ 2x dx: \n  2x = 2 * x^1 \n  n = 1 \n\n3) Aplicando a Regra: \n  x^(1+1)/(1+1) = x^2/2 \n\n4) Finalizando: \n  2 * (x^2 / 2) + C = x^2 + C \n\nExplicacao do Banco: \n'{}' \n\nReferência: Tabela Integrais 123 PDF.", explicacao
-    );
-
+    // Fundo escuro
     commands.spawn((
         Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.95), Vec2::new(1000.0, 600.0)),
         Transform::from_xyz(0.0, 0.0, 10.0),
@@ -433,18 +435,29 @@ fn spawn_popup_cola(
         Visibility::Hidden, 
     ));
 
-    commands.spawn((
-        Text2d::new(didatica),
-        TextFont {
-            font: fonte_matematica.clone(),
-            font_size: 28.0,
-            ..default()
-        },
-        TextColor(Color::WHITE),
+    // Imagem do tutorial (Pai)
+    let popup_image = commands.spawn((
+        Sprite::from_image(asset_server.load("tutorialcola.png")),
         Transform::from_xyz(0.0, 0.0, 11.0),
         PopUpCola,
         Visibility::Hidden,
-    ));
+    )).id();
+
+    // 🔴 AJUSTE ESTES VALORES AQUI 🔴
+    // Vá mudando os números e rodando o jogo até o quadrado vermelho
+    // ficar certinho em cima da área onde você quer que feche!
+    let pos_x_botao = 475.0; 
+    let pos_y_botao = 400.0;
+
+    let fechar_button = commands.spawn((
+        // Quando achar a posição certa, troque a linha abaixo para:
+        // Sprite::from_color(Color::NONE, Vec2::new(60.0, 60.0)),
+        Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.0), Vec2::new(60.0, 60.0)),
+        Transform::from_xyz(pos_x_botao, pos_y_botao, 1.0),
+        BotaoFecharCola,
+    )).id();
+
+    commands.entity(popup_image).add_children(&[fechar_button]);
 }
 
 fn spawn_game_over_tela(commands: &mut Commands, asset_server: &Res<AssetServer>) {
