@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 #[derive(Resource)]
 pub struct EstadoJogo {
-    pub vidas: i32,
     pub tempo_restante: f32,
     pub game_over: bool,
     pub pergunta_atual: usize,
@@ -23,8 +22,7 @@ pub enum TelaAtual {
 impl Default for EstadoJogo {
     fn default() -> Self {
         Self {
-            vidas: 3,
-            tempo_restante: 180.0,
+            tempo_restante: 300.0,
             game_over: false,
             pergunta_atual: 0,
             acertos: 0,
