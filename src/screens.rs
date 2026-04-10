@@ -17,7 +17,7 @@ pub fn spawn_menu(commands: &mut Commands, asset_server: &Res<AssetServer>) {
     ));
 
     commands.spawn((
-        Text2d::new("RPGCAL - Integrais"),
+        Text2d::new("Jogo - Integrais"),
         TextFont {
             font: fonte.clone(),
             font_size: 64.0,
